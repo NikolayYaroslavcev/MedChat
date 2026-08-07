@@ -17,7 +17,7 @@ export function LoadingDots({ className, ...props }: LoadingDotsProps) {
         <span
           key={delay}
           aria-hidden="true"
-          className="h-1.5 w-1.5 animate-loading-dot rounded-full bg-current"
+          className="h-1.5 w-1.5 animate-loading-dot rounded-pill bg-current"
           style={{ animationDelay: `${delay}s` }}
         />
       ))}

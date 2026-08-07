@@ -32,7 +32,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-control px-5 py-2.5 text-small font-medium",
-        "transition-colors transition-transform duration-150 ease-out active:scale-[0.98]",
+        "transition duration-150 ease-out active:scale-[0.98]",
         "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         focusRing,
         variantClasses[variant],

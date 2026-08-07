@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { Send } from "lucide-react";
 import { Button, Input } from "@/components/ui";
@@ -11,8 +11,13 @@ export interface ChatComposerProps {
   placeholder?: string;
 }
 
-export function ChatComposer({ onSend, disabled = false, placeholder = "Write a message…" }: ChatComposerProps) {
+export function ChatComposer({
+  onSend,
+  disabled = false,
+  placeholder = "Write a message…",
+}: ChatComposerProps) {
   const [value, setValue] = useState("");
+  const inputId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,17 +29,18 @@ export function ChatComposer({ onSend, disabled = false, placeholder = "Write a 
 
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-3 border-t border-border pt-4">
-      <label htmlFor="chat-composer-input" className="sr-only">
+      <label htmlFor={inputId} className="sr-only">
         Message
       </label>
       <Input
-        id="chat-composer-input"
+        id={inputId}
+        className="min-w-0 flex-1"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
       />
-      <Button type="submit" disabled={disabled} aria-label="Send message">
+      <Button type="submit" disabled={disabled} aria-label="Send message" className="shrink-0">
         <Send aria-hidden="true" className="h-4 w-4" />
       </Button>
     </form>
