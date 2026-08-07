@@ -63,10 +63,14 @@ Text-on-primary uses `--surface` (#FFFFFF) rather than a raw Tailwind
 ### Typography
 
 Own type scale exposed as Tailwind v4 custom font-size tokens (`text-display`,
-`text-h1`, `text-h2`, `text-body`, `text-small`, `text-caption`), each token
-carrying its own line-height and letter-spacing. Font-weight is applied via a
-paired Tailwind weight utility (documented per level, not baked into the
-token) since Tailwind v4 font-size tokens don't carry weight.
+`text-h1`, `text-h2`, `text-body`, `text-small`, `text-caption`). Tailwind v4's
+theme resolver supports `--text-<name>--line-height`, `--text-<name>--letter-spacing`,
+and `--text-<name>--font-weight` modifiers on a custom font-size token
+(confirmed in `node_modules/tailwindcss/dist/lib.js`), so each level is fully
+self-contained: applying the single class (e.g. `text-display`) sets size,
+line-height, letter-spacing, *and* weight together — no companion
+`font-semibold` utility needed, satisfying "font-size, line-height,
+letter-spacing, font-weight through design tokens".
 
 | Level   | Size / Line-height | Letter-spacing | Weight |
 |---------|---------------------|-----------------|--------|
@@ -159,6 +163,65 @@ inline mock data local to the demo page or the components themselves.
 
 `app/layout.tsx` metadata is updated away from the CNA defaults
 ("Create Next App"). `app/page.tsx` (CNA placeholder) is left untouched.
+
+## Engineering requirements
+
+Added after the initial approval round; treated as binding constraints on
+every task below.
+
+**Accessibility**
+- Every interactive element has a visible `focus-visible` state.
+- Buttons expose the native `disabled` attribute (not just a visual style).
+- Inputs get an accessible label or `aria-label` at the call site.
+- Decorative elements (status dot, icons) use `aria-hidden`.
+- `StatusIndicator` exposes its state as real text content (not color-only)
+  inside a `role="status"` wrapper.
+
+**TypeScript**
+- No `any`. No `eslint-disable` unless truly unavoidable (none expected here).
+- Explicit, exported prop interfaces per component (e.g. `ButtonProps`),
+  extending the relevant `React.ComponentPropsWithoutRef<...>` rather than
+  redeclaring native attributes.
+
+**Component architecture**
+- Minimal public API per component — only the props specified in this doc.
+- No speculative props, sizes, or variants beyond what's listed.
+- Components stay composable (props in, JSX out — no hidden context/state
+  beyond a component's own obviously-local UI state, e.g. an uncontrolled
+  input's own text value).
+
+**Styling**
+- Component classNames reference the token-backed Tailwind utilities
+  (`bg-primary`, `text-text-muted`, `border-border`, …), never raw hex codes
+  or Tailwind's default palette (`blue-500`, `gray-200`, etc.).
+- A shared `focusRing` class-string constant (`components/ui/styles.ts`) is
+  reused by every focusable primitive instead of repeating the ring utility
+  classes in each file.
+- Spacing stays on Tailwind's default scale (4px steps) throughout.
+
+**Performance**
+- No `React.memo`/`useMemo`/`useCallback` without a measured reason — these
+  are cheap presentational components.
+- No new runtime dependencies. `lucide-react`, `clsx`, `tailwind-merge` are
+  already installed and may be used; nothing else gets added.
+
+**Forward-compatibility (no breaking changes expected in later phases)**
+- `MeetingList`/`MeetingCard` and `ChatMessages`/`ChatMessage` take their
+  data as typed props (`meetings`, `messages`) rather than owning mock data
+  internally, so a later TanStack Query hook can supply the same shape.
+- `ChatComposer` exposes `onSend?(text: string)` and `disabled?: boolean`
+  rather than performing any submission itself, so a future WebSocket hook
+  plugs into `onSend` without a rewrite. Its own text-field value is local
+  UI state (not "business logic").
+- `StatusIndicator`'s `status` prop already matches WebSocket `readyState`
+  semantics (`connected | connecting | disconnected`) so a real
+  `useWebSocket`-style hook can feed it directly later.
+- The meeting-status → `Badge` variant mapping lives in `MeetingCard` (a
+  pure function), not in `Badge` itself, so swapping the data source never
+  touches the primitive.
+
+**Code quality gate:** `npm run lint` and `npm run build` must both finish
+with zero errors and zero warnings.
 
 ## Out of scope (explicitly deferred)
 
