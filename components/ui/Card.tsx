@@ -14,11 +14,17 @@ const paddingClasses: Record<CardPadding, string> = {
   lg: "p-8",
 };
 
-export function Card({ padding = "md", hoverable = false, className, children, ...props }: CardProps) {
+export function Card({
+  padding = "md",
+  hoverable = false,
+  className,
+  children,
+  ...props
+}: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-card border border-border bg-surface shadow-card transition-shadow transition-transform duration-200 ease-out",
+        "rounded-card border border-border bg-surface shadow-card transition duration-200 ease-out",
         hoverable && "hover:-translate-y-0.5 hover:shadow-card-hover",
         paddingClasses[padding],
         className,
