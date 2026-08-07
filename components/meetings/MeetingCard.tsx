@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui";
 import type { BadgeVariant } from "@/components/ui";
-
-export type MeetingStatus = "scheduled" | "completed" | "cancelled";
+import type { MeetingStatus } from "@/types/meeting";
 
 export interface MeetingData {
   id: string;
