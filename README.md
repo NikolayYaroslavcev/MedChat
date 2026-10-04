@@ -1,95 +1,107 @@
 # MedChat
 
-A care-coordination interface combining a live support chat with an upcoming-meetings
-overview, built on the Next.js App Router.
+**Русский** · [English](README.en.md)
 
-## Overview
+Интерфейс для координации ухода за пациентами: чат поддержки в реальном времени и
+обзор ближайших встреч в одном окне. Построен на Next.js App Router.
 
-MedChat is a single-page dashboard (`/chat`) with two independent panels:
+![MedChat](docs/screenshot.png)
 
-- **Upcoming meetings** — a server-rendered list backed by an internal API route, refreshable
-  on demand from the client.
-- **Support chat** — a WebSocket-driven chat with optimistic sends, an offline queue, and
-  automatic reconnect.
+## Обзор
 
-The two panels intentionally use different data strategies (request/response vs. a
-persistent socket) to reflect how each kind of data actually behaves: meetings are a
-point-in-time read that's cheap to refetch, chat is a continuous stream that must survive
-disconnects.
+MedChat - одностраничная панель (`/chat`) с двумя независимыми блоками:
 
-## Features
+- **Ближайшие встречи**: список, который рендерится на сервере и берёт данные из
+  внутреннего API-маршрута. Клиент может обновить его по запросу.
+- **Чат поддержки**: чат на WebSocket с оптимистичной отправкой, офлайн-очередью и
+  автоматическим переподключением.
 
-- Meetings list prefetched on the server and hydrated on the client, with a manual refresh
-- Chat composer with optimistic UI (pending → sent), a per-message ordering guarantee, and
-  a queue for messages composed while offline
-- Automatic WebSocket reconnect with visible connection status (Live / Reconnecting / Offline)
-- A small token-driven design system (`components/ui`) — no ad hoc styling in feature components
+Блоки намеренно используют разные стратегии работы с данными (запрос/ответ и
+постоянный сокет), потому что данные ведут себя по-разному: встречи читаются на
+конкретный момент времени и дёшево перезапрашиваются, а чат - непрерывный поток,
+который должен переживать разрывы соединения.
 
-## Tech stack
+## Возможности
 
-- **Next.js 16 (App Router) + React 19 + TypeScript** — routing, Server/Client Component split
-- **Tailwind CSS v4** — token-driven theme in `app/globals.css`, consumed via `components/ui`
-- **TanStack Query v5** — server-prefetch + client hydration for the meetings list
-- **Native WebSocket API** — no client library; the reconnect/queue/ack logic is hand-rolled
-  in `hooks/useWebSocket.ts` since the requirements (offline queue, ordered acks) don't map
-  onto a generic socket library's defaults
+- Список встреч предзагружается на сервере и гидратируется на клиенте, есть ручное обновление
+- Поле ввода чата с оптимистичным UI (pending → sent), гарантией порядка сообщений и
+  очередью для сообщений, набранных в офлайне
+- Автоматическое переподключение WebSocket с видимым статусом соединения (Live / Reconnecting / Offline)
+- Небольшая дизайн-система на токенах (`components/ui`), без разовых стилей в компонентах фич
 
-## Architecture
+## Технологии
 
-### Server / Client Components
+- **Next.js 16 (App Router) + React 19 + TypeScript**: маршрутизация, разделение на Server/Client-компоненты
+- **Tailwind CSS v4**: тема на токенах в `app/globals.css`, используется через `components/ui`
+- **TanStack Query v5**: серверная предзагрузка и клиентская гидратация списка встреч
+- **Нативный WebSocket API**: без клиентской библиотеки; логика переподключения, очереди и
+  подтверждений написана вручную в `hooks/useWebSocket.ts`, так как требования
+  (офлайн-очередь, упорядоченные подтверждения) не ложатся на настройки по умолчанию
+  универсальных сокет-библиотек
 
-`app/chat/page.tsx` is an `async` **Server Component**. It prefetches the meetings query on
-the server and passes the dehydrated cache down through `HydrationBoundary`, so the meetings
-list has data on first paint with no client-side loading flash. Only the pieces that need
-interactivity are `"use client"`: `MeetingsPanel` (owns the `useQuery`/refresh), and the
-entire chat panel (`ChatPanel` and everything under it), since a WebSocket connection is
-inherently a client-only concern. Static presentational components (`MeetingCard`,
-`MeetingList`, `ChatMessages`, `ChatHeader`) stay server-renderable — they take data as props
-and have no client-only APIs, so there's no reason to ship them as client bundles.
+## Архитектура
 
-### SSR strategy for the meetings list
+### Server / Client-компоненты
 
-`getMeetings` (`lib/api/meetings.ts`) is called from two different runtimes with two
-different URL-resolution rules, and the module accounts for both:
+`app/chat/page.tsx` - `async` **Server Component**. Он предзагружает запрос встреч на
+сервере и передаёт дегидрированный кэш вниз через `HydrationBoundary`, так что список
+встреч содержит данные уже при первой отрисовке и без мелькания индикатора загрузки
+на клиенте. С `"use client"` помечены только части, которым нужна интерактивность:
+`MeetingsPanel` (владеет `useQuery` и обновлением) и вся панель чата (`ChatPanel` и всё
+под ним), поскольку WebSocket-соединение по своей природе существует только на клиенте.
+Статические презентационные компоненты (`MeetingCard`, `MeetingList`, `ChatMessages`,
+`ChatHeader`) остаются пригодными для серверного рендеринга. Они получают данные через
+props и не используют клиентских API, так что отправлять их в клиентские бандлы незачем.
 
-- On the **server**, `fetch` has no implicit origin to resolve a relative path against, so
-  the request needs an absolute URL — built from `NEXT_PUBLIC_APP_URL` if set, otherwise
-  `http://localhost:<PORT>` for local dev.
-- In the **browser**, the request must go to whatever origin the page actually loaded from
-  (`typeof window !== "undefined"` branch uses a relative path), so the same code keeps
-  working after a deploy without needing `NEXT_PUBLIC_APP_URL` set for local development.
+### Стратегия SSR для списка встреч
 
-`queryOptions` (`lib/query/meetings.ts`) is the single source of truth for the query key and
-fetcher, shared by the server-side `prefetchQuery` call and the client-side `useQuery` —
-there's exactly one place that knows how to fetch meetings.
+`getMeetings` (`lib/api/meetings.ts`) вызывается из двух разных окружений с разными
+правилами разрешения URL, и модуль учитывает оба:
 
-The Route Handler at `app/api/meetings/route.ts` exists because the client-side "Refresh"
-button needs something to call over HTTP; the Server Component's prefetch also goes through
-it (rather than reading the mock data directly) to keep a single request path for both
-callers and to mirror how this would work against a real backend.
+- На **сервере** у `fetch` нет неявного origin, относительно которого можно разрешить
+  относительный путь, поэтому запросу нужен абсолютный URL. Он строится из
+  `NEXT_PUBLIC_APP_URL`, если переменная задана, иначе из `http://localhost:<PORT>`
+  для локальной разработки.
+- В **браузере** запрос должен идти на тот origin, с которого загрузилась страница
+  (ветка `typeof window !== "undefined"` использует относительный путь), поэтому тот же
+  код продолжает работать после деплоя, а для локальной разработки не нужно задавать
+  `NEXT_PUBLIC_APP_URL`.
 
-### WebSocket strategy
+`queryOptions` (`lib/query/meetings.ts`) - единственный источник правды для ключа
+запроса и fetcher'а. Его используют и серверный вызов `prefetchQuery`, и клиентский
+`useQuery`, так что способ получения встреч описан ровно в одном месте.
 
-`hooks/useWebSocket.ts` owns the socket lifecycle; `ChatPanel` owns chat state built on top
-of it. Deliberate choices:
+Route Handler в `app/api/meetings/route.ts` нужен потому, что клиентской кнопке
+«Refresh» требуется что-то, что можно вызвать по HTTP. Серверная предзагрузка из
+Server Component тоже идёт через него (а не читает мок-данные напрямую), чтобы у обоих
+вызывающих был один путь запроса и чтобы это повторяло работу с настоящим бэкендом.
 
-- **Reconnect**: on any close, a new socket is opened after a fixed 2s delay. There's no
-  backoff or attempt cap — acceptable for this scope, called out below as a limitation.
-- **Strict Mode safety**: React 19 Strict Mode mounts effects twice in development, which
-  can create a socket that's immediately torn down. The `onclose` handler only clears
-  `socketRef` if the closing socket is still the current one, so a stale socket's async
-  close event can't null out a live connection that superseded it.
-- **Message identity, not content**: incoming messages are stored as `{ data }` — a fresh
-  object every time — rather than the raw string. `ChatPanel` reacts to an incoming message
-  by reference in a `useEffect`, and two consecutive echoes with identical text still need to
-  be seen as two separate arrivals; storing a bare string would make React bail out on the
-  second identical value and silently drop it.
-- **Offline queue + ordered acks**: `ChatPanel` keeps two refs — an outbox for messages
-  composed while disconnected, and a FIFO of message IDs waiting for an echo. This assumes
-  the transport echoes back sends in the order they were received, which holds for the
-  echo-style test server this app targets against (`NEXT_PUBLIC_CHAT_WS_URL`).
+### Стратегия WebSocket
 
-## Project structure
+`hooks/useWebSocket.ts` владеет жизненным циклом сокета; `ChatPanel` владеет состоянием
+чата, построенным поверх него. Осознанные решения:
+
+- **Переподключение**: при любом закрытии новый сокет открывается через фиксированную
+  задержку в 2 секунды. Backoff и ограничения числа попыток нет. Для этого объёма работы
+  это приемлемо, ниже это указано как ограничение.
+- **Безопасность при Strict Mode**: Strict Mode в React 19 в режиме разработки
+  монтирует эффекты дважды, из-за чего может создаться сокет, который тут же
+  закрывается. Обработчик `onclose` сбрасывает `socketRef` только если закрывающийся
+  сокет всё ещё текущий, поэтому асинхронное событие закрытия устаревшего сокета не
+  обнулит живое соединение, которое его заменило.
+- **Идентичность сообщения, а не содержимое**: входящие сообщения хранятся как
+  `{ data }`, то есть каждый раз как новый объект, а не как сырая строка. `ChatPanel`
+  реагирует на входящее сообщение по ссылке в `useEffect`, а два подряд идущих эха с
+  одинаковым текстом всё равно должны восприниматься как два отдельных поступления.
+  Если хранить голую строку, React пропустит второе одинаковое значение и тихо его
+  потеряет.
+- **Офлайн-очередь и упорядоченные подтверждения**: `ChatPanel` держит два ref: outbox
+  для сообщений, набранных без соединения, и FIFO из ID сообщений, ожидающих эха. Это
+  предполагает, что транспорт возвращает отправленное в том порядке, в котором получил.
+  Для эхо-сервера, на который рассчитано приложение (`NEXT_PUBLIC_CHAT_WS_URL`), это
+  выполняется.
+
+## Структура проекта
 
 ```
 app/
@@ -108,46 +120,49 @@ providers/         QueryClientProvider setup
 types/             Shared domain types
 ```
 
-## Design decisions
+## Проектные решения
 
-- **Query Options pattern** (`lib/query/meetings.ts`): the query key and fetcher are defined
-  once via `queryOptions(...)` and reused by both the server prefetch and the client hook, so
-  there's no risk of the two drifting out of sync.
-- **A fresh `QueryClient` per server request, per client mount**: `createQueryClient()` is
-  called directly in the Server Component (new instance per request — no cross-request cache
-  sharing) and inside `useState(() => createQueryClient())` in the client provider (created
-  once per mount, not recreated on re-render).
-- **No animation library**: the two motion effects in the app (status pulse, loading dots)
-  are plain CSS `@keyframes` in `globals.css`, wired through Tailwind's `--animate-*` theme
-  tokens — not worth a dependency for two effects.
+- **Паттерн Query Options** (`lib/query/meetings.ts`): ключ запроса и fetcher
+  определяются один раз через `queryOptions(...)` и переиспользуются и серверной
+  предзагрузкой, и клиентским хуком, так что риска их расхождения нет.
+- **Новый `QueryClient` на каждый серверный запрос и на каждое клиентское
+  монтирование**: `createQueryClient()` вызывается прямо в Server Component (новый
+  экземпляр на запрос, поэтому кэш не делится между запросами) и внутри
+  `useState(() => createQueryClient())` в клиентском провайдере (создаётся один раз
+  на монтирование и не пересоздаётся при повторном рендере).
+- **Без библиотеки анимаций**: два эффекта движения в приложении (пульсация статуса,
+  точки загрузки) сделаны обычными CSS `@keyframes` в `globals.css` и подключены через
+  токены темы Tailwind `--animate-*`. Два эффекта не стоят отдельной зависимости.
 
-## Known limitations
+## Известные ограничения
 
-- Meetings are served from a static in-memory array (`app/api/meetings/route.ts`); there's no
-  persistence or write path.
-- WebSocket reconnect uses a fixed 2s delay with no backoff or max-attempt cutoff — fine for a
-  demo, not what you'd want against a flaky production endpoint.
-- The chat message list has no scroll container or max height; it's fine at demo scale but
-  would need one before it's used with a long-running conversation.
-- Chat timestamps (`en-GB`, 24-hour) and meeting timestamps (`en-US`, 12-hour) use different
-  locale formats — cosmetic, not fixed since it doesn't affect correctness.
+- Встречи отдаются из статического массива в памяти (`app/api/meetings/route.ts`);
+  сохранения данных и пути записи нет.
+- Переподключение WebSocket использует фиксированную задержку в 2 секунды, без backoff
+  и без предельного числа попыток. Для демо это нормально, но с нестабильным
+  production-эндпоинтом так лучше не делать.
+- У списка сообщений чата нет контейнера с прокруткой и максимальной высоты; на
+  демо-объёме это нормально, но для длинной переписки он понадобится.
+- Время сообщений чата (`en-GB`, 24-часовой формат) и время встреч (`en-US`,
+  12-часовой формат) используют разные форматы локали. Это косметика, и она не
+  исправлена, так как не влияет на корректность.
 
-## Running locally
+## Локальный запуск
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — it redirects to `/chat`.
+Откройте [http://localhost:3000](http://localhost:3000). Страница перенаправит на `/chat`.
 
-The chat panel connects to `NEXT_PUBLIC_CHAT_WS_URL` (defaults to `ws://localhost:8081`);
-without a server listening there it will show as reconnecting.
+Панель чата подключается к `NEXT_PUBLIC_CHAT_WS_URL` (по умолчанию `ws://localhost:8081`);
+если по этому адресу нет работающего сервера, статус будет «переподключение».
 
-## Scripts
+## Скрипты
 
-- `npm run dev` — start the dev server
-- `npm run build` / `npm run start` — production build and serve
-- `npm run lint` — ESLint
-- `npm run format` / `npm run format:check` — Prettier
-- `npm run knip` — unused files/exports report
+- `npm run dev`: запустить сервер разработки
+- `npm run build` / `npm run start`: production-сборка и её запуск
+- `npm run lint`: ESLint
+- `npm run format` / `npm run format:check`: Prettier
+- `npm run knip`: отчёт о неиспользуемых файлах и экспортах
