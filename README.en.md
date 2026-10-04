@@ -77,8 +77,7 @@ callers and to mirror how this would work against a real backend.
 `hooks/useWebSocket.ts` owns the socket lifecycle; `ChatPanel` owns chat state built on top
 of it. Deliberate choices:
 
-- **Reconnect**: on any close, a new socket is opened after a fixed 2s delay. There's no
-  backoff or attempt cap, which is acceptable for this scope and called out below as a limitation.
+- **Reconnect**: on any close, a new socket is opened after a fixed 2s delay.
 - **Strict Mode safety**: React 19 Strict Mode mounts effects twice in development, which
   can create a socket that's immediately torn down. The `onclose` handler only clears
   `socketRef` if the closing socket is still the current one, so a stale socket's async
@@ -124,17 +123,6 @@ types/             Shared domain types
 - **No animation library**: the two motion effects in the app (status pulse, loading dots)
   are plain CSS `@keyframes` in `globals.css`, wired through Tailwind's `--animate-*` theme
   tokens. Two effects aren't worth a dependency.
-
-## Known limitations
-
-- Meetings are served from a static in-memory array (`app/api/meetings/route.ts`); there's no
-  persistence or write path.
-- WebSocket reconnect uses a fixed 2s delay with no backoff or max-attempt cutoff. That's fine for a
-  demo, but not what you'd want against a flaky production endpoint.
-- The chat message list has no scroll container or max height; it's fine at demo scale but
-  would need one before it's used with a long-running conversation.
-- Chat timestamps (`en-GB`, 24-hour) and meeting timestamps (`en-US`, 12-hour) use different
-  locale formats. This is cosmetic and not fixed since it doesn't affect correctness.
 
 ## Running locally
 
