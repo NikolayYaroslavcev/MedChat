@@ -141,5 +141,7 @@ without a server listening there it will show as reconnecting.
 - `npm run dev`: start the dev server
 - `npm run build` / `npm run start`: production build and serve
 - `npm run lint`: ESLint
+- `npm run typecheck`: Next.js route type generation plus `tsc --noEmit`
+- `npm test`: Vitest. The `useWebSocket` hook (reconnects, sends only on an open socket) and `ChatPanel` (optimistic sends, offline queue, echo confirmation in send order) are tested against a mock WebSocket
 - `npm run format` / `npm run format:check`: Prettier
 - `npm run knip`: unused files/exports report

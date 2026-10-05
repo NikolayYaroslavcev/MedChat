@@ -150,5 +150,7 @@ npm run dev
 - `npm run dev`: запустить сервер разработки
 - `npm run build` / `npm run start`: production-сборка и её запуск
 - `npm run lint`: ESLint
+- `npm run typecheck`: генерация типов маршрутов Next.js и `tsc --noEmit`
+- `npm test`: Vitest. Хук `useWebSocket` (переподключение, отправка только в открытый сокет) и `ChatPanel` (оптимистичная отправка, офлайн-очередь, подтверждение по эхо в порядке отправки) проверяются на моке WebSocket
 - `npm run format` / `npm run format:check`: Prettier
 - `npm run knip`: отчёт о неиспользуемых файлах и экспортах
